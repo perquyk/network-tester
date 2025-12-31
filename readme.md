@@ -1,21 +1,2 @@
-## how to install/work on this:
-
-
-```
-git clone https://github.com/YOUR_USERNAME/network-tester.git
-cd network-tester
-```
-
-### Create their own venv
-```
-python3 -m venv venv
-source venv/bin/activate
-```
-### Install all dependencies from your requirements.txt
-```
-pip install -r requirements.txt
-```
-### Run the server
-```
-uvicorn server:app --host 0.0.0.0 --port 8000 --reload
-```
+This is just a test setup for remote network testing solution using a central server and agents that need to be on the network to be tested.
+This can be a LXC container to monitor your own network OR a raspberry Pi for remote monitoring or live testing.
