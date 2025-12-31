@@ -34,3 +34,5 @@ test_*.py
 check_*.py
 view_*.py
 delete_*.py
+__pycache__/server.cpython-313.pyc
+__pycache__/server.cpython-313.pyc
