@@ -42,22 +42,26 @@ def get_config():
             break
         print("Device ID cannot be empty!'\n")
 
-    # Get Server IP
+    # Get server address (IP or domain)
     while True:
-        server_host = input("Enter Server IP or hostname (e.g., 192.168.1.100): ").strip()
+        server_host = input("Enter Server IP or domain (e.g., 192.168.1.100 or dev.example.com): ").strip()
         if server_host:
             break
         print("Server address cannot be empty!\n")
 
-    # Get Server port
+    # Get server port
     server_port = input("Enter Server Port [8000]: ").strip()
     if not server_port:
         server_port = "8000"
 
+    # Ask about SSL/WSS
+    use_ssl = input("Use secure WebSocket (WSS)? Recommended for domains with SSL (y/N): ").strip().lower()
+    protocol = "wss" if use_ssl == 'y' else "ws"
+
     # Build config
     config = {
         "device_id": device_id,
-        "server_url": f"ws://{server_host}:{server_port}"
+        "server_url": f"{protocol}://{server_host}" + (f":{server_port}" if protocol == "ws" else "")
     }
 
     # confirm
