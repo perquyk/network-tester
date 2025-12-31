@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Network Testing Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .status-online {
+            color: green;
+            font-weight: bold;
+        }
+        .status-offline {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌐 Network Testing Dashboard</h1>
+
+    <div class="container">
+        <h2>Connected Devices</h2>
+        <div id="devices">Loading devices...</div>
+    </div>
+
+    <div class="container">
+        <h2>Recent Test Results</h2>
+        <button onclick="loadTests()">Refresh Tests</button>
+        <div id="tests">Loading tests...</div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+
+        // Load devices when page loads
+        async function loadDevices() {
+            try {
+                const response = await fetch(`${API_URL}/devices`);
+                const data = await response.json();
+                
+                let html = '<table><tr><th>Device ID</th><th>Name</th><th>Last Seen</th><th>Actions</th></tr>';
+                
+                data.devices.forEach(device => {
+                    html += `
+                        <tr>
+                            <td>${device.device_id}</td>
+                            <td>${device.name}</td>
+                            <td>${device.last_seen}</td>
+                            <td>
+                                <button onclick="triggerTest('${device.device_id}', '8.8.8.8')">
+                                    Test 8.8.8.8
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</table>';
+                document.getElementById('devices').innerHTML = html;
+            } catch (error) {
+                document.getElementById('devices').innerHTML = 'Error loading devices: ' + error;
+            }
+        }
+
+        // Load test results
+        async function loadTests() {
+            try {
+                const response = await fetch(`${API_URL}/tests?limit=20`);
+                const data = await response.json();
+                
+                let html = '<table><tr><th>ID</th><th>Device</th><th>Target</th><th>Time</th><th>Avg Ping</th><th>Loss</th></tr>';
+                
+                data.tests.forEach(test => {
+                    html += `
+                        <tr>
+                            <td>${test.id}</td>
+                            <td>${test.device_id}</td>
+                            <td>${test.target}</td>
+                            <td>${new Date(test.timestamp).toLocaleString()}</td>
+                            <td>${test.rtt_avg ? test.rtt_avg.toFixed(2) + ' ms' : 'N/A'}</td>
+                            <td>${test.packet_loss}%</td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</table>';
+                document.getElementById('tests').innerHTML = html;
+            } catch (error) {
+                document.getElementById('tests').innerHTML = 'Error loading tests: ' + error;
+            }
+        }
+
+        // Trigger a test on a device
+        async function triggerTest(deviceId, target) {
+            try {
+                const response = await fetch(`${API_URL}/device/${deviceId}/test?target=${target}&count=4`);
+                const data = await response.json();
+                
+                // Debug: show what we got
+                console.log('Response:', data);
+                
+                if (data.status === 'command_sent') {
+                    console.log(`Test command sent to ${deviceId}!`);
+                    setTimeout(loadTests, 2000);
+                    setTimeout(loadTests, 5000);
+                } else {
+                    alert('Error: ' + JSON.stringify(data));
+                }
+            } catch (error) {
+                console.error('Error triggering test:', error);
+                alert('Failed to trigger test: ' + error.message);
+            }
+        }
+        // Load data when page loads
+        loadDevices();
+        loadTests();
+
+        // Auto-refresh tests every 10 seconds
+        setInterval(loadTests, 10000);
+    </script>
+</body>
+</html>
