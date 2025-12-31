@@ -25,3 +25,12 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Config files
+agent_config.json
+
+# Test files
+test_*.py
+check_*.py
+view_*.py
+delete_*.py
