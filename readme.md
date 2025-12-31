@@ -1,21 +1,29 @@
-## how to install/work on this:
-
-
 ```
-git clone https://github.com/YOUR_USERNAME/network-tester.git
+git clone https://github.com/perquyk/network-tester.git
 cd network-tester
 ```
-
-### Create their own venv
+### For Server:
+#### First run:
 ```
 python3 -m venv venv
 source venv/bin/activate
-```
-### Install all dependencies from your requirements.txt
-```
 pip install -r requirements.txt
 ```
-### Run the server
+
+#### change API_URI in ./dashboard.html
+### run server:
 ```
 uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### For Agent:
+```
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+### inside ./agent.py change the name and IP at the top
+
+```
+python agent.py
 ```
