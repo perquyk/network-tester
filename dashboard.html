@@ -91,9 +91,12 @@
                                 <button onclick="triggerTest('${device.device_id}', '8.8.8.8')">
                                     Test 8.8.8.8
                                 </button>
+                                <button onclick="triggerSpeedtest('${device.device_id}')">
+                                    Speedtest
+                                </button>
                             </td>
                         </tr>
-                    `;
+`;
                 });
                 
                 html += '</table>';
@@ -109,17 +112,25 @@
                 const response = await fetch(`${API_URL}/tests?limit=20`);
                 const data = await response.json();
                 
-                let html = '<table><tr><th>ID</th><th>Device</th><th>Target</th><th>Time</th><th>Avg Ping</th><th>Loss</th></tr>';
+                let html = '<table><tr><th>ID</th><th>Device</th><th>Type</th><th>Target</th><th>Time</th><th>Result</th></tr>';
                 
                 data.tests.forEach(test => {
+                    let resultInfo = '';
+                    if (test.test_type === 'ping') {
+                        resultInfo = `${test.rtt_avg ? test.rtt_avg.toFixed(2) + ' ms' : 'N/A'} | ${test.packet_loss}% loss`;
+                    } else if (test.test_type === 'speedtest') {
+                        const result = test.result_json ? JSON.parse(test.result_json) : {};
+                        resultInfo = `↓ ${result.download_mbps || 'N/A'} Mbps | ↑ ${result.upload_mbps || 'N/A'} Mbps`;
+                    }
+                    
                     html += `
                         <tr>
                             <td>${test.id}</td>
                             <td>${test.device_id}</td>
-                            <td>${test.target}</td>
+                            <td>${test.test_type}</td>
+                            <td>${test.target || 'N/A'}</td>
                             <td>${new Date(test.timestamp).toLocaleString()}</td>
-                            <td>${test.rtt_avg ? test.rtt_avg.toFixed(2) + ' ms' : 'N/A'}</td>
-                            <td>${test.packet_loss}%</td>
+                            <td>${resultInfo}</td>
                         </tr>
                     `;
                 });
@@ -152,6 +163,27 @@
                 alert('Failed to trigger test: ' + error.message);
             }
         }
+        // Trigger a speedtest on a device
+        async function triggerSpeedtest(deviceId) {
+            try {
+                const response = await fetch(`${API_URL}/device/${deviceId}/speedtest`);
+                const data = await response.json();
+                
+                if (data.status === 'command_sent') {
+                    console.log(`Speedtest started on ${deviceId} (may take 60 seconds)`);
+                    // Check for results after longer delay
+                    setTimeout(loadTests, 10000);
+                    setTimeout(loadTests, 30000);
+                    setTimeout(loadTests, 60000);
+                } else {
+                    alert('Error: ' + JSON.stringify(data));
+                }
+            } catch (error) {
+                console.error('Error triggering speedtest:', error);
+                alert('Failed to trigger speedtest: ' + error.message);
+            }
+        }
+
         // Load data when page loads
         loadDevices();
         loadTests();

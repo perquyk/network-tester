@@ -6,6 +6,7 @@ import subprocess
 import re
 import json
 from database import register_device, save_test_results, get_all_tests, get_devices
+import time
 
 app = FastAPI()
 
@@ -72,6 +73,22 @@ def ping_test(target: str, count: int = 4, packet_size: int = 56):
     except Exception as e:
         return {"status": "error", "message": str(e)}
     
+@app.get("/device/{device_id}/speedtest")
+async def trigger_stpeedtest(device_id: str):
+    """Tell a device to run a speedtest"""
+    if device_id not in active_devices:
+        return {"status": "error", "message": f"Device {device_id} not connected"}
+    
+    command = {
+        "test_id": int(time.time()),
+        "test_type": "speedtest",
+        "config": {}
+    }
+
+    websocket = active_devices[device_id]
+    await websocket.send_text(json.dumps(command))
+    return {"status": "command_sent", "device": device_id, "command": command}
+
 @app.websocket("/ws/test")
 async def websocket_test(websocket: WebSocket):
     #accept the connection
@@ -112,13 +129,15 @@ async def device_connection(websocket: WebSocket, device_id: str):
             #Save to database!
             if message.get('status') == 'completed':
                 result = message.get('result', {})
-                test_id = save_test_results(
+                test_type = message.get('test_type', 'unknown')  # GET FROM MESSAGE
+                
+                test_id = save_test_results( 
                     device_id=device_id,
-                    test_type='ping',
+                    test_type=test_type,  
                     target=result.get('target'),
                     results=result
                 )
-                print(f"Saved test result with ID: {test_id}")
+                print(f"Saved {test_type} test result with ID: {test_id}")
     except Exception as e:
         print(f"Device {device_id} disconnected: {e}")
         if device_id in active_devices:
@@ -184,7 +203,10 @@ def list_tests(device_id: str = None, limit: int = 50):
                 "packet_loss": row[5],
                 "rtt_avg": row[6],
                 "rtt_min": row[7],
-                "rtt_max": row[8]
+                "rtt_max": row[8],
+                "download_mbps": row[9],
+                "upload_mbps": row[10],
+                "result_json": row[11]
             }
             for row in tests
         ]

@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import datetime
+import json 
 
 def init_database():
     """Create the database and tables if they don't exist"""
@@ -26,7 +27,10 @@ def init_database():
               packet_loss INTEGER,
               rtt_avg REAL,
               rtt_min REAL,
-              rtt_max REAL
+              rtt_max REAL,
+              download_mbps REAL,
+              upload_mbps REAL,
+              result_json TEXT
               )
     ''')
 
@@ -68,10 +72,12 @@ def save_test_results(device_id, test_type, target, results):
     conn = sqlite3.connect('network_tests.db')
     c = conn.cursor()
 
+    result_json = json.dumps(results)
+
     c.execute('''
         INSERT INTO tests (device_id, test_type, target, timestamp, 
-                          packet_loss, rtt_avg, rtt_min, rtt_max)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                          packet_loss, rtt_avg, rtt_min, rtt_max, download_mbps, upload_mbps, result_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         device_id,
         test_type,
@@ -80,7 +86,10 @@ def save_test_results(device_id, test_type, target, results):
         results.get('packet_loss_percent', None),
         results.get('rtt_avg_ms', None),
         results.get('rtt_min_ms', None),
-        results.get('rtt_max_ms', None)
+        results.get('rtt_max_ms', None),
+        results.get('download_mbps', None),
+        results.get('upload_mbps', None),
+        result_json
     ))
                 
               

@@ -123,6 +123,43 @@ async def run_ping(target, count=4, packet_size=56):
 
     return results
 
+async def run_speedtest():
+    """Run a speedtest and return results"""
+    print("Running speedtest (this may take 30-60 seconds)...")
+
+    try:
+        result = subprocess.run(
+            ['speedtest', '--format=json', '--accept-license', '--accept-gdpr'],
+            capture_output=True,
+            text=True,
+            timeout=120 #2 minutes max
+        )
+
+        if result.returncode != 0:
+            return {"error": "Speedtest failed", "stderr": result.stderr}
+        
+        # Parse the JSON Output
+        data = json.loads(result.stdout)
+
+        # Extract relevant information
+        results = {
+            "download_mbps": round(data['download']['bandwidth'] / 125000, 2),
+            "upload_mbps": round(data['upload']['bandwidth'] / 125000, 2),
+            "ping_ms": round(data['ping']['latency'], 2),
+            "server": data['server']['name'],
+            "server_location": data['server']['location'],
+            "isp": data['isp']
+        }
+
+        return results
+    
+    except subprocess.TimeoutExpired:
+        return {"error": "Speedtest timed out"}
+    except json.JSONDecodeError as e:
+        return {"error": "Failed to parse speedtest output", "details": str(e)}
+    except Exception as e:
+        return {"error": str(e)}
+
 async def connect_to_server():
     """connect to server and listen for commands"""
 
@@ -142,18 +179,37 @@ async def connect_to_server():
             #Parse the command (it will be JSON)
             command = json.loads(message)
 
-            #run teh test based on command type
             if command["test_type"] == "ping":
-                results = await run_ping(target=command["config"]["target"], count=command["config"].get("count", 4), packet_size=command["config"].get("packet_size", 56))
+                print("DEBUG: Running ping...")
+                results = await run_ping(
+                    target=command["config"]["target"],
+                    count=command["config"].get("count", 4),
+                    packet_size=command["config"].get("packet_size", 56)
+                )
+                print(f"DEBUG: Ping results: {results}")
+                
+            elif command["test_type"] == "speedtest":
+                print("DEBUG: Running speedtest...")
+                results = await run_speedtest()
+                print(f"DEBUG: Speedtest results: {results}")
+                
+            else:
+                print(f"DEBUG: Unknown test type: {command['test_type']}")
+                results = {"error": f"Unknown test type: {command['test_type']}"}
 
-                #send results back to server
-                response = {
-                    "test_id": command["test_id"],
-                    "status": "completed",
-                    "result": results
-                }
+            print("DEBUG: About to send results...")
 
-                await websocket.send(json.dumps(response))
-                print("results sent!")
+            # Send results back to server
+            response = {
+                "test_id": command["test_id"],
+                "test_type": command["test_type"],
+                "status": "completed",
+                "result": results
+            }
+
+            print(f"DEBUG: Response prepared: {response}")
+
+            await websocket.send(json.dumps(response))
+            print("DEBUG: Results sent!")
 
 asyncio.run(connect_to_server())
