@@ -35,3 +35,5 @@ check_*.py
 view_*.py
 delete_*.py
 __pycache__/server.cpython-313.pyc
+frontend/.env.development
+frontend/.env.production
