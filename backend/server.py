@@ -143,8 +143,8 @@ async def device_connection(websocket: WebSocket, device_id: str):
         if device_id in active_devices:
             del active_devices[device_id]
 
-@app.get("/device/{device_id}/test")
-async def trigger_test(device_id: str, target: str, count: int = 4):
+@app.get("/device/{device_id}/test/")
+async def trigger_test(device_id: str, target: str = "8.8.8.8", count: int = 4):
     """Tel a device to run a test"""
     
     # Check if device is connected

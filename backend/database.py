@@ -1,10 +1,17 @@
 import sqlite3
 from datetime import datetime
 import json 
+import os
+
+DATABASE_PATH = os.getenv('DATABASE_PATH', 'network_tests.db')
 
 def init_database():
     """Create the database and tables if they don't exist"""
-    conn = sqlite3.connect('network_tests.db')
+    # Create data directory if it doens't exist
+    os.makedirs(os.path.dirname(DATABASE_PATH) if os.path.dirname(DATABASE_PATH) else ".", exist_ok = True)
+
+
+    conn = sqlite3.connect('DATABASE_PATH')
     c = conn.cursor()
 
     #Create devices table
@@ -42,7 +49,7 @@ def register_device(device_id, name=None):
     """Register or update a device"""
     print(f"DEBUG: register_device called with device_id={device_id}")
     
-    conn = sqlite3.connect('network_tests.db')
+    conn = sqlite3.connect('DATABASE_PATH')
     c = conn.cursor()
     
     # Check if exists
@@ -69,7 +76,7 @@ def register_device(device_id, name=None):
 
 def save_test_results(device_id, test_type, target, results):
     """Save a test result to the database"""
-    conn = sqlite3.connect('network_tests.db')
+    conn = sqlite3.connect('DATABASE_PATH')
     c = conn.cursor()
 
     result_json = json.dumps(results)
@@ -100,7 +107,7 @@ def save_test_results(device_id, test_type, target, results):
 
 def get_all_tests(device_id=None, limit=50):
     """Get recent tests, optionally filtered by device"""
-    conn = sqlite3.connect('network_tests.db')
+    conn = sqlite3.connect('DATABASE_PATH')
     c = conn.cursor()
     
     if device_id:
@@ -123,7 +130,7 @@ def get_all_tests(device_id=None, limit=50):
 
 def get_devices():
     """Get all registered devices"""
-    conn = sqlite3.connect('network_tests.db')
+    conn = sqlite3.connect('DATABASE_PATH')
     c = conn.cursor()
     
     c.execute('SELECT * FROM devices ORDER BY last_seen DESC')
@@ -133,7 +140,7 @@ def get_devices():
 
 def delete_device(device_id, delete_tests=True):
     """Delete a device and optionally its test results"""
-    conn = sqlite3.connect('network_tests.db')
+    conn = sqlite3.connect('DATABASE_PATH')
     c = conn.cursor()
     
     if delete_tests:

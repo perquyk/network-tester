@@ -81,15 +81,16 @@
                 
                 let html = '<table><tr><th>Device ID</th><th>Name</th><th>Last Seen</th><th>Actions</th></tr>';
                 
-                data.devices.forEach(device => {
+                data.devices.forEach((device, index) => {
                     html += `
                         <tr>
                             <td>${device.device_id}</td>
                             <td>${device.name}</td>
                             <td>${device.last_seen}</td>
                             <td>
-                                <button onclick="triggerTest('${device.device_id}', '8.8.8.8')">
-                                    Test 8.8.8.8
+                                <input class="target" id="target${index}" type="text" value="8.8.8.8"/>
+                                <button onclick="triggerTest('${device.device_id}', document.querySelector('#target${index}').value)">
+                                    PING
                                 </button>
                                 <button onclick="triggerSpeedtest('${device.device_id}')">
                                     Speedtest

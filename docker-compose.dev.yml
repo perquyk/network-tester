@@ -1,0 +1,25 @@
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data  # Map data directory
+    command: uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DATABASE_PATH=/app/data/network_tests.db  # Use data directory
+  
+  frontend:
+    build:
+      context: ./frontend
+      target: builder  # Use the builder stage, not production
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host"
+    depends_on:
+      - backend
