@@ -130,20 +130,20 @@ async def trigger_arp(device_id: str):
     return {"status": "command_sent", "device": device_id, "command": command}
 
 
-
 @app.get("/devices")
 def list_devices():
     """List all registered devices"""
     devices = get_devices()
     print(f"DEBUG: get_devices() returned {len(devices)} devices")
     print(f"DEBUG: Raw data: {devices}")
-    
+
     result = {
         "devices": [
             {
                 "device_id": row[0],
                 "name": row[1],
-                "last_seen": row[2]
+                "last_seen": row[2],
+                "online": row[0] in active_devices
             }
             for row in devices
         ]
@@ -152,9 +152,9 @@ def list_devices():
     return result
 
 @app.get("/tests")
-def list_tests(device_id: str = None, limit: int = 50):
+def list_tests(device_id: str = None,test_type: str = None, limit: int = 50):
     """list test results, optionally filtered by device"""
-    tests = get_all_tests(device_id, limit)
+    tests = get_all_tests(device_id,test_type, limit)
     return {
         "tests": [
             {

@@ -1,6 +1,6 @@
 import sqlite3
-from datetime import datetime
-import json 
+from datetime import datetime, timezone
+import json
 import os
 
 DATABASE_PATH = os.getenv('DATABASE_PATH', 'network_tests.db')
@@ -73,13 +73,13 @@ def register_device(device_id, name=None):
         c.execute('''
             INSERT INTO devices (device_id, name, last_seen)
             VALUES (?, ?, ?)
-        ''', (device_id, device_name, datetime.now().isoformat()))
+        ''', (device_id, device_name, datetime.now(timezone.utc).isoformat()))
     else:
         # Update last_seen
         print(f"DEBUG: Updating device {device_id}")
         c.execute('''
             UPDATE devices SET last_seen = ? WHERE device_id = ?
-        ''', (datetime.now().isoformat(), device_id))
+        ''', (datetime.now(timezone.utc).isoformat(), device_id))
     
     conn.commit()
     conn.close()
@@ -104,7 +104,7 @@ def save_test_results(device_id, test_type, target, results):
         device_id,
         test_type,
         target,
-        datetime.now().isoformat(),
+        datetime.now(timezone.utc).isoformat(),
         results.get('packet_loss_percent', None),
         results.get('rtt_avg_ms', None),
         results.get('rtt_min_ms', None),
@@ -121,18 +121,27 @@ def save_test_results(device_id, test_type, target, results):
 
     return c.lastrowid
 
-def get_all_tests(device_id=None, limit=50):
+def get_all_tests(device_id=None, test_type=None,limit=50):
     """Get recent tests, optionally filtered by device"""
     conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
     
     if device_id:
-        c.execute('''
-            SELECT * FROM tests 
-            WHERE device_id = ? 
-            ORDER BY timestamp DESC 
-            LIMIT ?
-        ''', (device_id, limit))
+        if test_type:
+            c.execute('''
+                SELECT * FROM tests
+                WHERE device_id = ? AND
+                test_type = ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            ''', (device_id, test_type, limit))
+        else:
+            c.execute('''
+                SELECT * FROM tests 
+                WHERE device_id = ? 
+                ORDER BY timestamp DESC 
+                LIMIT ?
+            ''', (device_id, limit))
     else:
         c.execute('''
             SELECT * FROM tests 
