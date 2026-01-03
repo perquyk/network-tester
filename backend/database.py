@@ -37,9 +37,19 @@ def init_database():
               rtt_max REAL,
               download_mbps REAL,
               upload_mbps REAL,
+              arpTable TEXT,
               result_json TEXT
               )
     ''')
+
+    # Migration: Add arpTable column if it doesn't exist
+    try:
+        c.execute("SELECT arpTable FROM tests LIMIT 1")
+    except sqlite3.OperationalError:
+        # Column doesn't exist, add it
+        print("Adding arpTable column to tests table...")
+        c.execute("ALTER TABLE tests ADD COLUMN arpTable TEXT")
+        print("Migration complete!")
 
     conn.commit()
     conn.close()
@@ -81,10 +91,15 @@ def save_test_results(device_id, test_type, target, results):
 
     result_json = json.dumps(results)
 
+    # Serialize arpTable to JSON if present
+    arp_table_json = None
+    if 'arpTable' in results:
+        arp_table_json = json.dumps(results['arpTable'])
+
     c.execute('''
-        INSERT INTO tests (device_id, test_type, target, timestamp, 
-                          packet_loss, rtt_avg, rtt_min, rtt_max, download_mbps, upload_mbps, result_json)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO tests (device_id, test_type, target, timestamp,
+                          packet_loss, rtt_avg, rtt_min, rtt_max, download_mbps, upload_mbps, arpTable, result_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         device_id,
         test_type,
@@ -96,6 +111,7 @@ def save_test_results(device_id, test_type, target, results):
         results.get('rtt_max_ms', None),
         results.get('download_mbps', None),
         results.get('upload_mbps', None),
+        arp_table_json,
         result_json
     ))
                 

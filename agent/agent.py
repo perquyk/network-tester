@@ -160,6 +160,58 @@ async def run_speedtest():
     except Exception as e:
         return {"error": str(e)}
 
+async def run_arp():
+    """Run a arp command and return result"""
+    print("Running arp...")
+
+    try:
+        result = subprocess.run(
+            ['arp', '-a'],
+            capture_output=True,
+            text=True,
+            timeout=30 #30 sec timout
+        )
+        if result.returncode != 0:
+            return {"error": "arp failed", "stderr": result.stderr}
+
+        # Parse the arp output (plain text, not JSON)
+        arp_entries = []
+        for line in result.stdout.split('\n'):
+            # Skip empty lines and headers
+            if not line.strip() or line.startswith('?') or 'Address' in line:
+                continue
+
+            # Try to parse arp entry (format varies by OS)
+            # Linux format: hostname (ip) at mac [ether] on interface
+            # macOS format: hostname (ip) at mac on interface
+            parts = line.split()
+            if len(parts) >= 3:
+                entry = {
+                    "raw": line.strip()
+                }
+                # Try to extract IP (usually in parentheses)
+                for part in parts:
+                    if '(' in part and ')' in part:
+                        entry["ip"] = part.strip('()')
+                    # MAC address pattern (contains colons)
+                    elif ':' in part and len(part) == 17:
+                        entry["mac"] = part
+
+                arp_entries.append(entry)
+
+        results = {
+            "arpTable": arp_entries,
+            "raw_output": result.stdout
+        }
+
+        return results
+
+    except subprocess.TimeoutExpired:
+        return {"error": "Arp timed out"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 async def connect_to_server():
     """connect to server and listen for commands"""
 
@@ -192,6 +244,9 @@ async def connect_to_server():
                 print("DEBUG: Running speedtest...")
                 results = await run_speedtest()
                 print(f"DEBUG: Speedtest results: {results}")
+
+            elif command["test_type"] == "arp":
+                results = await run_arp()
                 
             else:
                 print(f"DEBUG: Unknown test type: {command['test_type']}")

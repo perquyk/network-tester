@@ -18,77 +18,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/dashboard")
-def dashboard():
-    """serve the dashboard html"""
-    return FileResponse('dashboard.html')
-
-@app.get("/ping/{target}")
-def ping_test(target: str, count: int = 4, packet_size: int = 56):
-    try:
-        # run the ping command
-        result = subprocess.run(
-            ['ping', '-c', str(count), '-s', str(packet_size), target],
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
-
-        output = result.stdout
-
-        if result.returncode != 0:
-            return{
-                "status": "error",
-                "message": f"Ping failed: {result.stderr or 'unreachable'}"
-            }
-
-        results = {
-            "target": target,
-            "packets_sent": count,
-            "packet_size": packet_size
-        }
-
-        loss_match = re.search(r'(\d+)% packet loss', output)
-        if loss_match :
-            results["packet_loss_percent"] = int(loss_match.group(1))
-        else:
-            return {
-                "status": "error",
-                "message": "Could not parse ping output"
-            }
-
-        time_match = re.search(r'(\d+\.\d+)/(\d+\.\d+)/(\d+\.\d+)/(\d+\.\d+) ms', output)
-        if time_match:
-            results["rtt_min_ms"] = float(time_match.group(1))
-            results["rtt_avg_ms"] = float(time_match.group(2))
-            results["rtt_max_ms"] = float(time_match.group(3))
-            results["rtt_mdev_ms"] = float(time_match.group(4))
-        else:
-            results["note"] = "No responses received (100% packet loss)"
-
-        return {"status": "success", "results": results}
-    
-    except subprocess.TimeoutExpired:
-        return {"status": "error", "message": "Ping Timed out"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-    
-@app.get("/device/{device_id}/speedtest")
-async def trigger_stpeedtest(device_id: str):
-    """Tell a device to run a speedtest"""
-    if device_id not in active_devices:
-        return {"status": "error", "message": f"Device {device_id} not connected"}
-    
-    command = {
-        "test_id": int(time.time()),
-        "test_type": "speedtest",
-        "config": {}
-    }
-
-    websocket = active_devices[device_id]
-    await websocket.send_text(json.dumps(command))
-    return {"status": "command_sent", "device": device_id, "command": command}
-
 @app.websocket("/ws/test")
 async def websocket_test(websocket: WebSocket):
     #accept the connection
@@ -167,6 +96,40 @@ async def trigger_test(device_id: str, target: str = "8.8.8.8", count: int = 4):
     await websocket.send_text(json.dumps(command))
 
     return {"status": "command_sent", "device": device_id, "command": command}
+
+@app.get("/device/{device_id}/speedtest")
+async def trigger_speedtest(device_id: str):
+    """Tell a device to run a speedtest"""
+    if device_id not in active_devices:
+        return {"status": "error", "message": f"Device {device_id} not connected"}
+    
+    command = {
+        "test_id": int(time.time()),
+        "test_type": "speedtest",
+        "config": {}
+    }
+
+    websocket = active_devices[device_id]
+    await websocket.send_text(json.dumps(command))
+    return {"status": "command_sent", "device": device_id, "command": command}
+
+@app.get("/device/{device_id}/arp")
+async def trigger_arp(device_id: str):
+    """Tell a deivce to get an arp table"""
+    if device_id not in active_devices:
+        return {"status": "error", "message": f"Device {device_id} not connected"}
+
+    command = {
+        "test_id": int(time.time()),
+        "test_type": "arp",
+        "config": {}
+    }
+
+    websocket = active_devices[device_id]
+    await websocket.send_text(json.dumps(command))
+    return {"status": "command_sent", "device": device_id, "command": command}
+
+
 
 @app.get("/devices")
 def list_devices():
