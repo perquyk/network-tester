@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+*.db
+
+# Node
+node_modules/
+dist/
+.env
+
+# Docker
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Config
+agent_config.json

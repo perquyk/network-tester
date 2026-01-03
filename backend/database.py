@@ -1,10 +1,17 @@
 import sqlite3
-from datetime import datetime
-import json 
+from datetime import datetime, timezone
+import json
+import os
+
+DATABASE_PATH = os.getenv('DATABASE_PATH', 'network_tests.db')
 
 def init_database():
     """Create the database and tables if they don't exist"""
-    conn = sqlite3.connect('network_tests.db')
+    # Create data directory if it doens't exist
+    os.makedirs(os.path.dirname(DATABASE_PATH) if os.path.dirname(DATABASE_PATH) else ".", exist_ok = True)
+
+
+    conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
 
     #Create devices table
@@ -30,9 +37,19 @@ def init_database():
               rtt_max REAL,
               download_mbps REAL,
               upload_mbps REAL,
+              arpTable TEXT,
               result_json TEXT
               )
     ''')
+
+    # Migration: Add arpTable column if it doesn't exist
+    try:
+        c.execute("SELECT arpTable FROM tests LIMIT 1")
+    except sqlite3.OperationalError:
+        # Column doesn't exist, add it
+        print("Adding arpTable column to tests table...")
+        c.execute("ALTER TABLE tests ADD COLUMN arpTable TEXT")
+        print("Migration complete!")
 
     conn.commit()
     conn.close()
@@ -42,7 +59,7 @@ def register_device(device_id, name=None):
     """Register or update a device"""
     print(f"DEBUG: register_device called with device_id={device_id}")
     
-    conn = sqlite3.connect('network_tests.db')
+    conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
     
     # Check if exists
@@ -56,39 +73,45 @@ def register_device(device_id, name=None):
         c.execute('''
             INSERT INTO devices (device_id, name, last_seen)
             VALUES (?, ?, ?)
-        ''', (device_id, device_name, datetime.now().isoformat()))
+        ''', (device_id, device_name, datetime.now(timezone.utc).isoformat()))
     else:
         # Update last_seen
         print(f"DEBUG: Updating device {device_id}")
         c.execute('''
             UPDATE devices SET last_seen = ? WHERE device_id = ?
-        ''', (datetime.now().isoformat(), device_id))
+        ''', (datetime.now(timezone.utc).isoformat(), device_id))
     
     conn.commit()
     conn.close()
 
 def save_test_results(device_id, test_type, target, results):
     """Save a test result to the database"""
-    conn = sqlite3.connect('network_tests.db')
+    conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
 
     result_json = json.dumps(results)
 
+    # Serialize arpTable to JSON if present
+    arp_table_json = None
+    if 'arpTable' in results:
+        arp_table_json = json.dumps(results['arpTable'])
+
     c.execute('''
-        INSERT INTO tests (device_id, test_type, target, timestamp, 
-                          packet_loss, rtt_avg, rtt_min, rtt_max, download_mbps, upload_mbps, result_json)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO tests (device_id, test_type, target, timestamp,
+                          packet_loss, rtt_avg, rtt_min, rtt_max, download_mbps, upload_mbps, arpTable, result_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         device_id,
         test_type,
         target,
-        datetime.now().isoformat(),
+        datetime.now(timezone.utc).isoformat(),
         results.get('packet_loss_percent', None),
         results.get('rtt_avg_ms', None),
         results.get('rtt_min_ms', None),
         results.get('rtt_max_ms', None),
         results.get('download_mbps', None),
         results.get('upload_mbps', None),
+        arp_table_json,
         result_json
     ))
                 
@@ -98,18 +121,27 @@ def save_test_results(device_id, test_type, target, results):
 
     return c.lastrowid
 
-def get_all_tests(device_id=None, limit=50):
+def get_all_tests(device_id=None, test_type=None,limit=50):
     """Get recent tests, optionally filtered by device"""
-    conn = sqlite3.connect('network_tests.db')
+    conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
     
     if device_id:
-        c.execute('''
-            SELECT * FROM tests 
-            WHERE device_id = ? 
-            ORDER BY timestamp DESC 
-            LIMIT ?
-        ''', (device_id, limit))
+        if test_type:
+            c.execute('''
+                SELECT * FROM tests
+                WHERE device_id = ? AND
+                test_type = ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            ''', (device_id, test_type, limit))
+        else:
+            c.execute('''
+                SELECT * FROM tests 
+                WHERE device_id = ? 
+                ORDER BY timestamp DESC 
+                LIMIT ?
+            ''', (device_id, limit))
     else:
         c.execute('''
             SELECT * FROM tests 
@@ -123,7 +155,7 @@ def get_all_tests(device_id=None, limit=50):
 
 def get_devices():
     """Get all registered devices"""
-    conn = sqlite3.connect('network_tests.db')
+    conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
     
     c.execute('SELECT * FROM devices ORDER BY last_seen DESC')
@@ -133,7 +165,7 @@ def get_devices():
 
 def delete_device(device_id, delete_tests=True):
     """Delete a device and optionally its test results"""
-    conn = sqlite3.connect('network_tests.db')
+    conn = sqlite3.connect(DATABASE_PATH)
     c = conn.cursor()
     
     if delete_tests:

@@ -1,0 +1,25 @@
+
+services:
+  backend:
+    build: ./backend
+    container_name: network-tester-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./network_tests.db:/app/network_tests.db
+    environment:
+      - DATABASE_URL=/app/network_tests.db
+    restart: unless-stopped
+  
+  frontend:
+    build: ./frontend
+    container_name: network-tester-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  data:
